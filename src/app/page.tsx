@@ -1,103 +1,201 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter()
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const [storeName, setStoreName] = useState('')
+  const [domain, setDomain] = useState('')
+  const [domainStatus, setDomainStatus] = useState<null | 'available' | 'taken'>(null)
+  const [domainMessage, setDomainMessage] = useState('')
+  const [country, setCountry] = useState('Bangladesh')
+  const [category, setCategory] = useState('Fashion')
+  const [currency, setCurrency] = useState('BDT')
+  const [email, setEmail] = useState('')
+
+  const [errors, setErrors] = useState<any>({})
+  const [loading, setLoading] = useState(false)
+
+  const validate = () => {
+    const newErrors: any = {}
+
+    if (storeName.length < 3) newErrors.storeName = 'Store name must be at least 3 characters long'
+    if (domain.length < 3) newErrors.domain = 'Domain must be at least 3 characters long'
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) newErrors.email = 'Invalid email format'
+    if (domainStatus === 'taken') newErrors.domain = 'Not Available Domain, Re-enter!'
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const checkDomain = async (value: string) => {
+    if (!value) {
+      setDomainStatus(null)
+      setDomainMessage('')
+      return
+    }
+
+    try {
+      const res = await axios.get(`https://interview-task-green.vercel.app/task/domains/check/${value}.expressitbd.com`)
+      const { taken } = res.data
+
+      if (taken) {
+        setDomainStatus('taken')
+        setDomainMessage('Domain already taken. Please try another.')
+      } else {
+        setDomainStatus('available')
+        setDomainMessage('Domain is available.')
+      }
+    } catch (err) {
+      setDomainStatus(null)
+      setDomainMessage('Something went wrong!')
+    }
+  }
+
+  useEffect(() => {
+    if (domain.length > 2) {
+      const delay = setTimeout(() => checkDomain(domain), 600)
+      return () => clearTimeout(delay)
+    } else {
+      setDomainStatus(null)
+      setDomainMessage('')
+    }
+  }, [domain])
+
+  const handleSubmit = async () => {
+    if (!validate()) return
+
+    setLoading(true)
+    try {
+      const res = await axios.post('https://interview-task-green.vercel.app/task/stores/create', {
+        name: storeName,
+        currency,
+        country,
+        domain,
+        category,
+        email,
+      })
+
+      if (res.data.status === 200 && res.data.succcess) {
+        window.location.href = '/products'
+      }
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setErrors({ domain: 'This domain is already taken. Try a different one.' })
+      } else {
+        alert('Something went wrong. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0f0f0f] text-white flex items-center justify-center p-4">
+      <div className="bg-[#1c1c1e] w-full max-w-2xl p-8 rounded-xl shadow-md">
+        <h2 className="text-2xl font-bold mb-2">Create a store</h2>
+        <p className="text-gray-400 mb-6">Add your basic store information and complete the setup</p>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block mb-1 text-sm">Give your online store a name</label>
+            <input
+              value={storeName}
+              onChange={(e) => setStoreName(e.target.value)}
+              placeholder="How'd you like to call your store?"
+              className={`w-full p-2 rounded border ${errors.storeName ? 'border-red-500' : 'border-gray-700'} bg-[#2c2c2e]`}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            {errors.storeName && <p className="text-red-500 text-sm mt-1">{errors.storeName}</p>}
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm">Your online store subdomain</label>
+            <div className="flex">
+              <input
+                type="text"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                placeholder="Enter your prefered domain"
+                className={`border rounded-l-md px-3 py-2 w-full bg-[#2c2c2e] 
+                  ${domainStatus === 'available' ? 'border-green-500' : ''} 
+                  ${domainStatus === 'taken' ? 'border-red-500' : 'border-gray-700'}
+                `}
+              />
+              <span className="px-3 py-2 rounded-r bg-[#2c2c2e] border border-l-0 border-gray-700 text-sm">
+                .expressitbd.com
+              </span>
+            </div>
+            {domainMessage && (
+              <p className={`text-sm mt-1 
+                ${domainStatus === 'available' ? 'text-green-500' : ''} 
+                ${domainStatus === 'taken' ? 'text-red-500' : ''}
+              `}>
+                {domainMessage}
+              </p>
+            )}
+            {errors.domain && <p className="text-red-500 text-sm mt-1">{errors.domain}</p>}
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm">Where's your store located?</label>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full p-2 rounded border border-gray-700 bg-[#2c2c2e]"
+            >
+              <option>Bangladesh</option>
+              <option>USA</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm">What's your Category?</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full p-2 rounded border border-gray-700 bg-[#2c2c2e]"
+            >
+              <option>Fashion</option>
+              <option>Electronics</option>
+              <option>Food</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm">Choose store currency</label>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="w-full p-2 rounded border border-gray-700 bg-[#2c2c2e]"
+            >
+              <option>BDT</option>
+              <option>USD</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-sm">Store contact email</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className={`w-full p-2 rounded border ${errors.email ? 'border-red-500' : 'border-gray-700'} bg-[#2c2c2e]`}
+            />
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading || domainStatus !== 'available'}
+            className={`w-full p-2 rounded bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 transition`}
           >
-            Read our docs
-          </a>
+            {loading ? 'Creating...' : 'Create store'}
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
-  );
+  )
 }
